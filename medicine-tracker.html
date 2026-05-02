@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+<meta name="apple-mobile-web-app-title" content="Medicines"/>
+<title>Medicine Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --green: #1D9E75;
+    --green-light: #E1F5EE;
+    --green-dark: #0F6E56;
+    --red: #E24B4A;
+    --red-light: #FCEBEB;
+    --bg: #F7F6F3;
+    --surface: #FFFFFF;
+    --surface2: #F0EEE9;
+    --border: rgba(0,0,0,0.09);
+    --border-med: rgba(0,0,0,0.14);
+    --text: #1A1916;
+    --text2: #6B6860;
+    --text3: #9E9C97;
+    --radius: 14px;
+    --radius-sm: 9px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; background: var(--bg); font-family: 'DM Sans', sans-serif; color: var(--text); overscroll-behavior: none; }
+  body { display: flex; flex-direction: column; max-width: 480px; margin: 0 auto; position: relative; }
+
+  /* ── Top bar ── */
+  .topbar {
+    padding: 14px 16px 12px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px;
+    position: sticky; top: 0; z-index: 10;
+  }
+  .topbar-icon { font-size: 22px; line-height: 1; }
+  .topbar h1 { font-size: 18px; font-weight: 600; flex: 1; }
+  .topbar-sub { font-size: 12px; color: var(--text2); }
+
+  /* ── Screens ── */
+  .screen { display: none; flex: 1; overflow-y: auto; padding-bottom: 80px; }
+  .screen.active { display: block; }
+
+  /* ── Bottom nav ── */
+  .bottom-nav {
+    position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 100%; max-width: 480px;
+    display: flex; background: var(--surface);
+    border-top: 1px solid var(--border);
+    z-index: 30; padding-bottom: env(safe-area-inset-bottom);
+  }
+  .nav-btn {
+    flex: 1; padding: 10px 0 8px; background: none; border: none; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    font-size: 10px; font-family: 'DM Sans', sans-serif; color: var(--text3);
+    transition: color 0.15s;
+  }
+  .nav-btn.active { color: var(--green); font-weight: 500; }
+  .nav-icon { font-size: 22px; line-height: 1; }
+  .nav-label-wrap { display: flex; align-items: center; gap: 4px; }
+  .nav-badge {
+    display: none; background: var(--red); color: #fff;
+    border-radius: 20px; font-size: 10px; padding: 1px 6px; font-weight: 600;
+  }
+
+  /* ── Medicine list ── */
+  .med-item {
+    display: flex; align-items: center; padding: 14px 16px;
+    border-bottom: 1px solid var(--border); gap: 12px;
+    background: var(--surface); transition: background 0.1s;
+  }
+  .check-btn {
+    width: 28px; height: 28px; border-radius: 50%;
+    border: 1.5px solid var(--border-med); background: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    font-size: 14px; transition: all 0.15s; color: transparent;
+  }
+  .check-btn.checked { background: var(--green); border-color: var(--green); color: #fff; }
+  .med-name { flex: 1; font-size: 15px; font-weight: 400; }
+  .med-price { font-size: 13px; color: var(--text2); min-width: 56px; text-align: right; }
+  .icon-btn { background: none; border: none; cursor: pointer; padding: 6px; font-size: 16px; color: var(--text3); line-height: 1; border-radius: 6px; }
+  .icon-btn.del { color: var(--red); }
+
+  /* ── Primary action button ── */
+  .action-btn {
+    display: block; margin: 14px 16px;
+    width: calc(100% - 32px); padding: 14px;
+    background: var(--text); color: #fff;
+    border: none; border-radius: var(--radius);
+    font-size: 15px; font-weight: 500; font-family: 'DM Sans', sans-serif;
+    cursor: pointer; transition: opacity 0.15s, transform 0.1s;
+  }
+  .action-btn:disabled { opacity: 0.3; cursor: default; }
+  .action-btn:active:not(:disabled) { transform: scale(0.98); }
+  .action-btn.green { background: var(--green); }
+  .action-btn.green:active:not(:disabled) { background: var(--green-dark); }
+
+  /* ── Section label ── */
+  .section-label {
+    padding: 14px 16px 6px; font-size: 11px; font-weight: 600;
+    color: var(--text3); letter-spacing: 0.07em; text-transform: uppercase;
+  }
+
+  /* ── Bucket ── */
+  .bucket-item {
+    display: flex; align-items: center; padding: 13px 16px;
+    border-bottom: 1px solid var(--border); gap: 10px; background: var(--surface);
+  }
+  .bucket-name { flex: 1; font-size: 14px; }
+  .qty-pill {
+    font-size: 12px; font-weight: 500; color: var(--green-dark);
+    background: var(--green-light); border-radius: 20px; padding: 3px 10px;
+  }
+  .bucket-price { font-size: 14px; color: var(--text2); min-width: 64px; text-align: right; }
+
+  .total-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 16px; background: var(--surface);
+    border-top: 1px solid var(--border-med);
+    font-size: 16px; font-weight: 600;
+  }
+  .total-amt { color: var(--green); font-size: 18px; }
+
+  /* ── History ── */
+  .hist-card {
+    margin: 12px 16px;
+    background: var(--surface); border-radius: var(--radius);
+    border: 1px solid var(--border); overflow: hidden;
+  }
+  .hist-head {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 14px; border-bottom: 1px solid var(--border);
+    background: var(--green-light);
+  }
+  .hist-month { font-size: 14px; font-weight: 600; color: var(--green-dark); }
+  .hist-date { font-size: 12px; color: var(--green-dark); opacity: 0.7; }
+  .hist-body { padding: 10px 14px 12px; }
+  .hist-meds { font-size: 13px; color: var(--text2); line-height: 1.6; margin-bottom: 6px; }
+  .hist-total { font-size: 15px; font-weight: 600; color: var(--green); }
+  .paid-badge {
+    display: inline-block; font-size: 11px; font-weight: 600;
+    background: var(--green-light); color: var(--green-dark);
+    border-radius: 20px; padding: 2px 10px; margin-left: 8px; vertical-align: middle;
+  }
+
+  /* ── Empty state ── */
+  .empty-state {
+    padding: 56px 32px; text-align: center;
+    color: var(--text3); font-size: 14px; line-height: 1.7;
+  }
+  .empty-icon { font-size: 40px; margin-bottom: 12px; display: block; opacity: 0.5; }
+
+  /* ── FAB ── */
+  .fab {
+    position: fixed; bottom: 76px; right: calc(50% - 220px);
+    width: 50px; height: 50px; border-radius: 50%;
+    background: var(--text); color: #fff; font-size: 26px;
+    border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.18); z-index: 20;
+    transition: transform 0.15s;
+  }
+  .fab:active { transform: scale(0.93); }
+  @media (max-width: 480px) { .fab { right: 16px; } }
+
+  /* ── Modal sheet ── */
+  .sheet-bg {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.35); z-index: 50;
+    align-items: flex-end; justify-content: center;
+  }
+  .sheet-bg.open { display: flex; }
+  .sheet {
+    background: var(--surface); border-radius: 20px 20px 0 0;
+    padding: 20px 16px calc(32px + env(safe-area-inset-bottom)); width: 100%; max-width: 480px;
+    animation: slideUp 0.22s ease;
+  }
+  @keyframes slideUp { from { transform: translateY(60px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  .sheet h2 { font-size: 16px; font-weight: 600; margin-bottom: 16px; }
+  .sheet-input {
+    width: 100%; padding: 12px 14px; margin-bottom: 12px;
+    border: 1px solid var(--border-med); border-radius: var(--radius-sm);
+    font-size: 15px; font-family: 'DM Sans', sans-serif;
+    background: var(--bg); color: var(--text); outline: none;
+  }
+  .sheet-input:focus { border-color: var(--green); }
+  .sheet-row { display: flex; gap: 10px; }
+  .sheet-row button { flex: 1; padding: 13px; border-radius: var(--radius-sm); font-size: 15px; font-family: 'DM Sans', sans-serif; cursor: pointer; border: 1px solid var(--border-med); background: var(--bg); color: var(--text); font-weight: 400; }
+  .sheet-row .primary { background: var(--text); color: #fff; border-color: transparent; font-weight: 500; }
+
+  /* ── Confirm dialog ── */
+  .dialog-bg {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.35); z-index: 60;
+    align-items: center; justify-content: center; padding: 24px;
+  }
+  .dialog-bg.open { display: flex; }
+  .dialog {
+    background: var(--surface); border-radius: var(--radius);
+    padding: 24px 20px 16px; width: 100%; max-width: 360px;
+    animation: popIn 0.18s ease;
+  }
+  @keyframes popIn { from { transform: scale(0.92); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .dialog h2 { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
+  .dialog p { font-size: 14px; color: var(--text2); margin-bottom: 20px; line-height: 1.55; }
+  .dialog-row { display: flex; gap: 10px; }
+  .dialog-row button { flex: 1; padding: 12px; border-radius: var(--radius-sm); font-size: 15px; font-family: 'DM Sans', sans-serif; cursor: pointer; border: 1px solid var(--border-med); background: var(--bg); color: var(--text); }
+  .dialog-row .green { background: var(--green); color: #fff; border-color: transparent; font-weight: 500; }
+
+  /* ── Toast ── */
+  .toast {
+    position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: #1A1916; color: #fff; border-radius: 30px;
+    padding: 10px 20px; font-size: 13px; font-weight: 500;
+    opacity: 0; transition: all 0.25s; z-index: 100; white-space: nowrap;
+    pointer-events: none;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<!-- Medicine screen -->
+<div id="screen-medicines" class="screen active">
+  <div class="topbar">
+    <span class="topbar-icon">💊</span>
+    <h1>Medicines</h1>
+  </div>
+  <div id="med-list"></div>
+  <button class="action-btn" id="add-to-bucket-btn" disabled>Add selected to bucket</button>
+</div>
+
+<!-- Bucket screen -->
+<div id="screen-bucket" class="screen">
+  <div class="topbar">
+    <span class="topbar-icon">🧺</span>
+    <h1>Bucket</h1>
+    <span class="topbar-sub" id="bucket-month-label"></span>
+  </div>
+  <div id="bucket-list"></div>
+  <div id="bucket-total" style="display:none"></div>
+  <button class="action-btn green" id="mark-paid-btn" disabled>Mark as paid</button>
+</div>
+
+<!-- History screen -->
+<div id="screen-history" class="screen">
+  <div class="topbar">
+    <span class="topbar-icon">📋</span>
+    <h1>History</h1>
+  </div>
+  <div id="history-list"></div>
+</div>
+
+<!-- Bottom nav -->
+<nav class="bottom-nav">
+  <button class="nav-btn active" id="nav-medicines" onclick="goTo('medicines')">
+    <span class="nav-icon">💊</span>
+    <span class="nav-label-wrap">Medicines</span>
+  </button>
+  <button class="nav-btn" id="nav-bucket" onclick="goTo('bucket')">
+    <span class="nav-icon">🧺</span>
+    <span class="nav-label-wrap">Bucket <span class="nav-badge" id="nav-badge"></span></span>
+  </button>
+  <button class="nav-btn" id="nav-history" onclick="goTo('history')">
+    <span class="nav-icon">📋</span>
+    <span class="nav-label-wrap">History</span>
+  </button>
+</nav>
+
+<button class="fab" id="fab" onclick="openAddModal()">+</button>
+
+<!-- Add/Edit medicine sheet -->
+<div class="sheet-bg" id="med-sheet">
+  <div class="sheet">
+    <h2 id="sheet-title">Add medicine</h2>
+    <input class="sheet-input" type="text" id="input-name" placeholder="Medicine name" autocomplete="off"/>
+    <input class="sheet-input" type="number" id="input-price" placeholder="Price per strip / unit (₹) — optional" min="0" step="0.01"/>
+    <div class="sheet-row">
+      <button onclick="closeSheet()">Cancel</button>
+      <button class="primary" onclick="saveSheet()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Pay confirmation dialog -->
+<div class="dialog-bg" id="pay-dialog">
+  <div class="dialog">
+    <h2>Mark as paid?</h2>
+    <p id="pay-dialog-text"></p>
+    <div class="dialog-row">
+      <button onclick="document.getElementById('pay-dialog').classList.remove('open')">Cancel</button>
+      <button class="green" onclick="confirmPaid()">Yes, paid!</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const KEY = 'medtracker_v2';
+
+function loadState() {
+  try {
+    const d = localStorage.getItem(KEY);
+    return d ? JSON.parse(d) : { medicines: [], bucket: {}, history: [] };
+  } catch { return { medicines: [], bucket: {}, history: [] }; }
+}
+function saveState() {
+  try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {}
+}
+
+let state = loadState();
+let selected = new Set();
+let editingId = null;
+
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+function currentMonth() { return new Date().toLocaleString('en-IN', { month: 'long', year: 'numeric' }); }
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+/* ── Navigation ── */
+function goTo(tab) {
+  ['medicines','bucket','history'].forEach(t => {
+    document.getElementById('screen-' + t).classList.toggle('active', t === tab);
+    document.getElementById('nav-' + t).classList.toggle('active', t === tab);
+  });
+  document.getElementById('fab').style.display = tab === 'medicines' ? 'flex' : 'none';
+  if (tab === 'bucket') renderBucket();
+  if (tab === 'history') renderHistory();
+}
+
+/* ── Medicine screen ── */
+function renderMedicines() {
+  const list = document.getElementById('med-list');
+  const btn = document.getElementById('add-to-bucket-btn');
+  if (!state.medicines.length) {
+    list.innerHTML = '<div class="empty-state"><span class="empty-icon">💊</span>No medicines yet.<br>Tap + below to add one.</div>';
+    btn.disabled = true; return;
+  }
+  list.innerHTML = state.medicines.map(m => `
+    <div class="med-item">
+      <button class="check-btn ${selected.has(m.id) ? 'checked' : ''}" onclick="toggleSel('${m.id}')">✓</button>
+      <span class="med-name">${esc(m.name)}</span>
+      <span class="med-price">${m.price ? '₹' + Number(m.price).toFixed(2) : ''}</span>
+      <button class="icon-btn" onclick="openEditModal('${m.id}')">✎</button>
+      <button class="icon-btn del" onclick="deleteMed('${m.id}')">✕</button>
+    </div>
+  `).join('');
+  btn.disabled = selected.size === 0;
+}
+
+function toggleSel(id) {
+  if (selected.has(id)) selected.delete(id); else selected.add(id);
+  renderMedicines();
+}
+
+function addToBucket() {
+  if (!selected.size) return;
+  const month = currentMonth();
+  if (!state.bucket[month]) state.bucket[month] = [];
+  selected.forEach(id => {
+    const med = state.medicines.find(m => m.id === id);
+    if (!med) return;
+    const ex = state.bucket[month].find(b => b.id === id);
+    if (ex) ex.qty += 1;
+    else state.bucket[month].push({ id: med.id, name: med.name, price: med.price, qty: 1 });
+  });
+  const n = selected.size;
+  selected.clear();
+  saveState(); renderMedicines(); updateBadge();
+  showToast(n + ' medicine' + (n > 1 ? 's' : '') + ' added to bucket');
+  goTo('bucket');
+}
+
+function deleteMed(id) {
+  if (!confirm('Remove this medicine?')) return;
+  state.medicines = state.medicines.filter(m => m.id !== id);
+  selected.delete(id);
+  saveState(); renderMedicines();
+}
+
+/* ── Bucket screen ── */
+function renderBucket() {
+  const month = currentMonth();
+  document.getElementById('bucket-month-label').textContent = month;
+  const items = state.bucket[month] || [];
+  const list = document.getElementById('bucket-list');
+  const totalDiv = document.getElementById('bucket-total');
+  const payBtn = document.getElementById('mark-paid-btn');
+
+  if (!items.length) {
+    list.innerHTML = '<div class="empty-state"><span class="empty-icon">🧺</span>Bucket is empty.<br>Go to Medicines, select what was<br>ordered, and tap "Add to bucket".</div>';
+    totalDiv.style.display = 'none'; payBtn.disabled = true; return;
+  }
+
+  list.innerHTML = '<div class="section-label">Ordered — ' + month + '</div>' +
+    items.map(b => `
+      <div class="bucket-item">
+        <span class="bucket-name">${esc(b.name)}</span>
+        <span class="qty-pill">×${b.qty}</span>
+        <span class="bucket-price">${b.price ? '₹' + (b.price * b.qty).toFixed(2) : '—'}</span>
+        <button class="icon-btn del" onclick="removeBucket('${b.id}')">✕</button>
+      </div>
+    `).join('');
+
+  const total = items.reduce((s, b) => s + (b.price ? b.price * b.qty : 0), 0);
+  const hasPrice = items.some(b => b.price);
+  totalDiv.style.display = 'flex';
+  totalDiv.className = 'total-row';
+  totalDiv.innerHTML = '<span>Total</span><span class="total-amt">' + (hasPrice ? '₹' + total.toFixed(2) : '—') + '</span>';
+  payBtn.disabled = false;
+}
+
+function removeBucket(id) {
+  const month = currentMonth();
+  const item = state.bucket[month].find(b => b.id === id);
+  if (item && item.qty > 1) { item.qty -= 1; }
+  else { state.bucket[month] = (state.bucket[month] || []).filter(b => b.id !== id); }
+  saveState(); updateBadge(); renderBucket();
+}
+
+function markPaid() {
+  const month = currentMonth();
+  const items = state.bucket[month] || [];
+  if (!items.length) return;
+  const total = items.reduce((s, b) => s + (b.price ? b.price * b.qty : 0), 0);
+  const hasPrice = items.some(b => b.price);
+  document.getElementById('pay-dialog-text').textContent =
+    'Mark all ' + items.length + ' medicine(s) for ' + month + ' as paid' +
+    (hasPrice ? ' (₹' + total.toFixed(2) + ')?' : '?');
+  document.getElementById('pay-dialog').classList.add('open');
+}
+
+function confirmPaid() {
+  const month = currentMonth();
+  const items = state.bucket[month] || [];
+  const total = items.reduce((s, b) => s + (b.price ? b.price * b.qty : 0), 0);
+  state.history.unshift({
+    month,
+    items: JSON.parse(JSON.stringify(items)),
+    total,
+    paidOn: new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+  });
+  delete state.bucket[month];
+  saveState();
+  document.getElementById('pay-dialog').classList.remove('open');
+  updateBadge(); renderBucket();
+  showToast('Marked as paid!');
+}
+
+/* ── History screen ── */
+function renderHistory() {
+  const list = document.getElementById('history-list');
+  if (!state.history.length) {
+    list.innerHTML = '<div class="empty-state"><span class="empty-icon">📋</span>No payments recorded yet.</div>';
+    return;
+  }
+  list.innerHTML = state.history.map(h => `
+    <div class="hist-card">
+      <div class="hist-head">
+        <span class="hist-month">${esc(h.month)}</span>
+        <span class="hist-date">Paid on ${esc(h.paidOn)}</span>
+      </div>
+      <div class="hist-body">
+        <div class="hist-meds">${h.items.map(i => esc(i.name) + (i.qty > 1 ? ' ×' + i.qty : '')).join(', ')}</div>
+        <div class="hist-total">${h.total ? '₹' + h.total.toFixed(2) : 'Amount not recorded'}<span class="paid-badge">Paid</span></div>
+      </div>
+    </div>
+  `).join('');
+}
+
+/* ── Badge ── */
+function updateBadge() {
+  const month = currentMonth();
+  const count = (state.bucket[month] || []).reduce((s, b) => s + b.qty, 0);
+  const badge = document.getElementById('nav-badge');
+  badge.textContent = count; badge.style.display = count ? 'inline' : 'none';
+}
+
+/* ── Add/Edit sheet ── */
+function openAddModal() {
+  editingId = null;
+  document.getElementById('sheet-title').textContent = 'Add medicine';
+  document.getElementById('input-name').value = '';
+  document.getElementById('input-price').value = '';
+  document.getElementById('med-sheet').classList.add('open');
+  setTimeout(() => document.getElementById('input-name').focus(), 150);
+}
+function openEditModal(id) {
+  const med = state.medicines.find(m => m.id === id);
+  if (!med) return;
+  editingId = id;
+  document.getElementById('sheet-title').textContent = 'Edit medicine';
+  document.getElementById('input-name').value = med.name;
+  document.getElementById('input-price').value = med.price || '';
+  document.getElementById('med-sheet').classList.add('open');
+  setTimeout(() => document.getElementById('input-name').focus(), 150);
+}
+function closeSheet() { document.getElementById('med-sheet').classList.remove('open'); editingId = null; }
+function saveSheet() {
+  const name = document.getElementById('input-name').value.trim();
+  const price = parseFloat(document.getElementById('input-price').value) || 0;
+  if (!name) { document.getElementById('input-name').focus(); return; }
+  if (editingId) {
+    const med = state.medicines.find(m => m.id === editingId);
+    if (med) { med.name = name; med.price = price; }
+  } else {
+    state.medicines.push({ id: uid(), name, price });
+  }
+  saveState(); closeSheet(); renderMedicines();
+  showToast(editingId ? 'Medicine updated' : 'Medicine added');
+}
+
+function esc(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ── Init ── */
+document.getElementById('add-to-bucket-btn').addEventListener('click', addToBucket);
+document.getElementById('mark-paid-btn').addEventListener('click', markPaid);
+document.getElementById('med-sheet').addEventListener('click', e => { if (e.target === document.getElementById('med-sheet')) closeSheet(); });
+document.getElementById('pay-dialog').addEventListener('click', e => { if (e.target === document.getElementById('pay-dialog')) document.getElementById('pay-dialog').classList.remove('open'); });
+document.getElementById('input-name').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('input-price').focus(); });
+document.getElementById('input-price').addEventListener('keydown', e => { if (e.key === 'Enter') saveSheet(); });
+
+renderMedicines();
+updateBadge();
+</script>
+</body>
+</html>
